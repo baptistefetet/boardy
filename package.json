@@ -1,0 +1,18 @@
+{
+  "name": "boardy",
+  "version": "1.0.0",
+  "description": "Discord voice bot for board game sessions: live transcript, spoken rules answers, session summaries",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "dependencies": {
+    "@discordjs/opus": "^0.10.0",
+    "@discordjs/voice": "^0.19.2",
+    "discord.js": "^14.25.1",
+    "ws": "^8.21.3"
+  }
+}
