@@ -41,8 +41,10 @@ function addressesBot(text, botName) {
 	const tolerance = name.length >= 6 ? 2 : name.length >= 4 ? 1 : 0;
 	return normalize(text).split(/[.!?…]+/).some(sentence => {
 		const words = sentence.match(/[\p{L}\p{N}]+/gu) || [];
-		const first = INTERJECTIONS.has(words[0]) ? words[1] : words[0];
-		return first !== undefined && distance(first, name) <= tolerance;
+		const start = INTERJECTIONS.has(words[0]) ? 1 : 0;
+		// "BoardyBot" may be transcribed as two words: try the first one, then the first two joined.
+		return [words[start], words[start] && words[start + 1] && words[start] + words[start + 1]]
+			.some(candidate => candidate && distance(candidate, name) <= tolerance);
 	});
 }
 
