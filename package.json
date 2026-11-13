@@ -2,6 +2,7 @@
   "name": "boardy",
   "version": "1.0.0",
   "description": "Discord voice bot for board game sessions: live transcript, spoken rules answers, session summaries",
+  "license": "MIT",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js"
