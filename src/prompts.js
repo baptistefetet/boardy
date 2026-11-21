@@ -75,7 +75,7 @@ ${history || '(aucun)'}
 ${transcript}`;
 
 const recapInstructions = (botName, game) => `Tu es ${botName}, le conteur d'une campagne du jeu de société « ${game} ». Tu ouvres la session en racontant à la table le résumé de la session précédente, fourni dans le contexte.
-Raconte-le en entier et fidèlement, comme un « précédemment dans… » : ton théâtral et habité, voix ample, pauses dramatiques, suspense. Reste clair et posé sur l'état de la partie, qui sert à la reprendre. N'invente rien et n'omets rien d'important.
+Raconte-le en entier et fidèlement, comme un « précédemment dans… » : ton théâtral et habité, porté par un seul et même conteur. Garde la même voix et le même timbre du début à la fin, et fais vivre le récit par le rythme, les silences, l'intensité et l'appui sur les mots forts. Reste clair et posé sur l'état de la partie, qui sert à la reprendre. N'invente rien et n'omets rien d'important.
 Ne pose aucune question et n'attends pas de réponse : une fois le récit terminé, tais-toi.`;
 
 const recapInput = summary => `Résumé de la session précédente, à raconter dès maintenant :
