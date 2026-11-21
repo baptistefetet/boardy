@@ -80,16 +80,4 @@ async function generate(instructions, input) {
 		.trim();
 }
 
-/** Text to speech, streamed to `onAudio` as 24 kHz mono 16-bit PCM. */
-async function speak(input, instructions, onAudio, signal) {
-	const res = await fetch(`${API}/audio/speech`, {
-		method: 'POST',
-		headers: { Authorization: `Bearer ${config.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-		body: JSON.stringify({ model: config.TTS_MODEL, voice: config.LIVE_VOICE, input, instructions, response_format: 'pcm' }),
-		signal,
-	});
-	if (!res.ok) throw new Error(`OpenAI /audio/speech ${res.status}: ${(await res.text()).slice(0, 300)}`);
-	for await (const chunk of res.body) onAudio(Buffer.from(chunk));
-}
-
-module.exports = { transcribe, generate, speak };
+module.exports = { transcribe, generate };

@@ -77,7 +77,7 @@ class Conversation {
 		});
 		this.call.on('audio', pcm => {
 			if (this.closed || session.ending) return;
-			session.speaker.write(pcm); // not activity: GPT-Live may stream audio while idle
+			session.speaker.write(pcm); // not activity: GPT-Live streams near-silence while idle
 		});
 		this.call.on('speech', delta => { this.speech += delta; });
 		this.call.on('delegation', id => this.onDelegation(id));

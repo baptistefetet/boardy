@@ -74,8 +74,14 @@ ${history || '(aucun)'}
 # Transcript de la session
 ${transcript}`;
 
-const recapInstructions = game => `Tu es le conteur d'une campagne du jeu de société « ${game} » : tu rappelles à la table ce qui s'est passé à la session précédente. Ton théâtral et habité, comme un « précédemment dans… » : voix ample, pauses dramatiques, suspense dans le récit. Reste clair et posé sur les détails pratiques de l'état de la partie. Les titres de section sont des transitions, pas des intitulés à annoncer platement.`;
+const recapInstructions = (botName, game) => `Tu es ${botName}, le conteur d'une campagne du jeu de société « ${game} ». Tu ouvres la session en racontant à la table le résumé de la session précédente, fourni dans le contexte.
+Raconte-le en entier et fidèlement, comme un « précédemment dans… » : ton théâtral et habité, voix ample, pauses dramatiques, suspense. Reste clair et posé sur l'état de la partie, qui sert à la reprendre. N'invente rien et n'omets rien d'important.
+Ne pose aucune question et n'attends pas de réponse : une fois le récit terminé, tais-toi.`;
+
+const recapInput = summary => `Résumé de la session précédente, à raconter dès maintenant :
+
+${summary}`;
 
 const transcriptionPrompt = (botName, game, previous) => `Partie du jeu de société « ${game} » autour d'une table. Les joueurs s'adressent parfois à l'assistant ${botName}.${previous ? ` ${previous}` : ''}`;
 
-module.exports = { SUMMARY_TITLE, liveInstructions, liveContext, backendInstructions, summaryInstructions, summaryInput, recapInstructions, transcriptionPrompt };
+module.exports = { SUMMARY_TITLE, liveInstructions, liveContext, backendInstructions, summaryInstructions, summaryInput, recapInstructions, recapInput, transcriptionPrompt };

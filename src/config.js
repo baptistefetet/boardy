@@ -19,9 +19,8 @@ module.exports = {
 	LOCALE: 'fr-FR',
 
 	TRANSCRIBE_MODEL: 'gpt-transcribe',
-	LIVE_MODEL: 'gpt-live-1',
-	LIVE_VOICE: 'marin', // also reads the previous summary
-	TTS_MODEL: 'gpt-4o-mini-tts',
+	LIVE_MODEL: 'gpt-live-1.1',
+	LIVE_VOICE: 'sillage', // French, masculine
 	// Rules searches (GPT-Live backend) and session summaries.
 	TEXT_MODEL: 'gpt-6.2-sol',
 	REASONING_EFFORT: 'xhigh',

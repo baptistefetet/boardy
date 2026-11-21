@@ -67,7 +67,7 @@ class LiveCall extends EventEmitter {
 
 	/** Graceful close: wait for `session.closed`, which carries the final usage. */
 	close() {
-		if (this.ended) return Promise.resolve();
+		if (this.ended || !this.ws) return Promise.resolve(); // no socket: the constructor threw
 		this.closing ??= new Promise(resolve => {
 			const timer = setTimeout(() => this.ws.terminate(), CLOSE_TIMEOUT_MS);
 			this.once('closed', () => {
