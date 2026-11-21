@@ -20,7 +20,8 @@ module.exports = {
 
 	TRANSCRIBE_MODEL: 'gpt-transcribe',
 	LIVE_MODEL: 'gpt-live-1',
-	LIVE_VOICE: 'marin',
+	LIVE_VOICE: 'marin', // also reads the previous summary
+	TTS_MODEL: 'gpt-4o-mini-tts',
 	// Rules searches (GPT-Live backend) and session summaries.
 	TEXT_MODEL: 'gpt-6.2-sol',
 	REASONING_EFFORT: 'xhigh',
@@ -33,7 +34,7 @@ module.exports = {
 	SEGMENT_MIN_RMS: 100, // below: digital silence, never sent
 
 	// GPT-Live is billed per second open: close it once the exchange is over.
-	LIVE_IDLE_MS: 30_000,
+	LIVE_IDLE_MS: 60_000,
 	LIVE_DELEGATION_TIMEOUT_MS: 5 * 60_000,
 
 	ALONE_TIMEOUT_MS: 30 * 60_000,

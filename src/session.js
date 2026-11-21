@@ -8,10 +8,10 @@ const {
 } = require('@discordjs/voice');
 const config = require('./config');
 const { newOpus, msToBytes, bytesToMs, toMono24k, rms, wav, Speaker } = require('./audio');
-const { transcribe, generate } = require('./openai');
+const { transcribe, generate, speak } = require('./openai');
 const { Conversation } = require('./conversation');
 const { time, day, send, notice, fetchBotMessages } = require('./discord');
-const { summaryInstructions, summaryInput, transcriptionPrompt } = require('./prompts');
+const { SUMMARY_TITLE, summaryInstructions, summaryInput, recapInstructions, transcriptionPrompt } = require('./prompts');
 
 const DISCONNECTED_MS = 5_000; // voice connection stuck in Disconnected
 const RECOVERY_MS = 30_000; // voice connection back to Ready
@@ -20,7 +20,20 @@ const REPLAY_MS = 60_000; // per-speaker audio kept to replay a question to GPT-
 const PROMPT_TAIL_CHARS = 300;
 const INTERJECTIONS = new Set(['dis', 'hey', 'he', 'eh', 'oh', 'ok', 'okay', 'alors', 'bon']);
 
+const TTS_MAX_CHARS = 4096;
+
 const normalize = text => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+const toSpeech = markdown => markdown.replace(/[#*_`]|📜/gu, '').replace(/^\s*-\s+/gm, '');
+
+/** As few TTS inputs as possible, cut between sections above the API limit. */
+function speechPieces(markdown) {
+	const pieces = [];
+	for (const section of markdown.split(/\n(?=### )/).map(toSpeech)) {
+		if (pieces.length && pieces.at(-1).length + 1 + section.length <= TTS_MAX_CHARS) pieces[pieces.length - 1] += `\n${section}`;
+		else pieces.push(section);
+	}
+	return pieces;
+}
 
 function distance(a, b) {
 	let previous = Array.from({ length: b.length + 1 }, (_, i) => i);
@@ -62,10 +75,11 @@ class GameSession {
 		this.onEnded = onEnded;
 		this.startedAt = new Date();
 		this.transcript = []; // { at, name, text }, in arrival order
-		this.history = []; // bot messages, campaign context for GPT-Live
+		this.history = []; // bot messages (summaries), campaign context
 		this.listeners = new Map(); // userId → speaker state
 		this.transcriptions = new Set();
 		this.conversation = null;
+		this.recap = null; // previous summary read aloud: { controller, at }
 		this.closings = new Set(); // conversations still finalizing
 		this.connection = null;
 		this.player = null;
@@ -108,6 +122,36 @@ class GameSession {
 		console.log(`[session] started in "${this.game}" (${this.guildId})`);
 		this.ready = true;
 		this.checkAlone();
+		this.narrate();
+	}
+
+	/** Read the previous session's summary aloud, until the first wake word. */
+	async narrate() {
+		const start = this.history.findLastIndex(({ text }) => text.startsWith(SUMMARY_TITLE));
+		if (start < 0 || this.ending || this.conversation) return; // history loads while the session runs
+		const pieces = speechPieces(this.history.slice(start).map(({ text }) => text).join('\n')); // its Discord chunks
+		const { signal } = (this.recap = { controller: new AbortController(), at: Date.now() }).controller;
+		let bytes = 0;
+		const play = pcm => {
+			if (signal.aborted) return;
+			bytes += pcm.length;
+			this.speaker.write(pcm);
+		};
+		console.log(`[session] recap: ${pieces.join('').length} characters, ${pieces.length} TTS call(s)`);
+		try {
+			for (const piece of pieces) await speak(piece, recapInstructions(this.game), play, signal);
+			console.log(`[session] recap: ${Math.round(bytesToMs(bytes) / 1000)} s of audio received`);
+		} catch (err) {
+			if (!signal.aborted) console.warn('[session] recap failed:', err.message);
+		}
+	}
+
+	stopRecap() {
+		if (!this.recap) return;
+		console.log(`[session] recap stopped by the wake word ${Math.round((Date.now() - this.recap.at) / 1000)} s after its start`);
+		this.recap.controller.abort();
+		this.recap = null;
+		this.speaker.stop();
 	}
 
 	/**
@@ -224,6 +268,7 @@ class GameSession {
 		const later = listener.recent.filter(s => s.at > segment.at).map(s => s.pcm);
 		const replay = [segment.pcm, ...later, ...listener.chunks];
 		if (this.conversation) return this.conversation.summon(listener.userId, replay);
+		this.stopRecap();
 		const conversation = this.conversation = new Conversation(this, listener.userId, replay);
 		console.log(`[session] ${listener.name} summoned ${this.botName}`);
 		conversation.open().catch(err => {
@@ -243,17 +288,6 @@ class GameSession {
 		this.closings.delete(conversation.closing);
 		const text = conversation.speech.trim();
 		if (text) this.transcript.push({ at: conversation.openedAt, name: this.botName, text });
-	}
-
-	async postAnswer(text, sources) {
-		const links = [...sources].map(([url, title]) => `- [${title.replace(/[[\]]/g, '')}](<${url}>)`);
-		const content = `🔎 ${text}${links.length ? `\n**Sources :**\n${links.join('\n')}` : ''}`;
-		this.history.push({ at: new Date(), text: content });
-		try {
-			await send(this.channel, content);
-		} catch (err) {
-			console.warn('[session] answer not posted:', err.message);
-		}
 	}
 
 	formatHistory(history = this.history) {
@@ -277,6 +311,7 @@ class GameSession {
 		clearTimeout(this.recoveryTimer);
 		clearTimeout(this.disconnectTimer);
 		for (const listener of this.listeners.values()) this.flush(listener);
+		this.recap?.controller.abort();
 		this.speaker?.stop();
 		if (this.connection.state.status !== VoiceConnectionStatus.Destroyed) this.connection.destroy();
 		this.onEnded(this);

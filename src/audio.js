@@ -82,7 +82,7 @@ class Speaker {
 		clearTimeout(this.endTimer);
 		this.stream?.destroy();
 		this.stream = this.resource = null;
-		this.pending = EMPTY;
+		this.pending = this.odd = EMPTY; // a leftover byte would misalign the next audio
 		this.player.stop(true);
 	}
 
