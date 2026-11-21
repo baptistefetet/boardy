@@ -22,7 +22,7 @@ module.exports = {
 	LIVE_MODEL: 'gpt-live-1',
 	LIVE_VOICE: 'marin',
 	// Rules searches (GPT-Live backend) and session summaries.
-	TEXT_MODEL: 'gpt-6.1-sol',
+	TEXT_MODEL: 'gpt-6.2-sol',
 	REASONING_EFFORT: 'xhigh',
 	SERVICE_TIER: 'priority', // "Fast" mode
 

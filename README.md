@@ -12,7 +12,7 @@ The prompts and messages are in French.
 ## Requirements
 
 - Node.js 22+, on Linux. On ARM64 with GCC ≥ 14, build `@discordjs/opus` with `CFLAGS="-Wno-error=implicit-function-declaration" npm install`.
-- An OpenAI API key with access to `gpt-transcribe`, `gpt-live-1` and `gpt-6.1-sol`. Typical cost: a few dollars per 5-hour session, mostly rules searches.
+- An OpenAI API key with access to `gpt-transcribe`, `gpt-live-1` and `gpt-6.2-sol`. Typical cost: a few dollars per 5-hour session, mostly rules searches.
 
 ## Discord application
 
