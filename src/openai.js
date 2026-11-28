@@ -31,14 +31,13 @@ async function withRetry(fn) {
 }
 
 /** Transcribe a WAV buffer with gpt-transcribe. */
-function transcribe(wav, { prompt, keywords }) {
+function transcribe(wav, prompt) {
 	return withRetry(async () => {
 		const form = new FormData();
 		form.append('file', new Blob([wav], { type: 'audio/wav' }), 'segment.wav');
 		form.append('model', config.TRANSCRIBE_MODEL);
 		form.append('prompt', prompt);
 		form.append('languages[]', config.LANGUAGE);
-		for (const keyword of keywords) form.append('keywords[]', keyword);
 		const { text } = await request('/audio/transcriptions', { method: 'POST', body: form, signal: AbortSignal.timeout(60_000) });
 		return (text || '').trim();
 	});

@@ -242,10 +242,8 @@ class GameSession {
 		let text;
 		try {
 			const previous = this.transcript.length ? this.transcript[this.transcript.length - 1].text.slice(-PROMPT_TAIL_CHARS) : '';
-			text = await transcribe(wav(segment.pcm), {
-				prompt: transcriptionPrompt(this.game, previous),
-				keywords: [this.botName, this.game].map(word => word.replace(/[\p{C}<>]/gu, '').trim()).filter(Boolean),
-			});
+			// No keywords: gpt-transcribe was seen writing them out on unclear audio, waking the bot.
+			text = await transcribe(wav(segment.pcm), transcriptionPrompt(this.game, previous));
 		} catch (err) {
 			console.warn('[transcribe] failed:', err.message);
 			return;
