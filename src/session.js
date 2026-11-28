@@ -20,7 +20,8 @@ const RESUBSCRIBE_MS = 1000;
 const REPLAY_MS = 60_000; // per-speaker audio kept to replay a question to GPT-Live
 const PROMPT_TAIL_CHARS = 300;
 const INTERJECTIONS = new Set(['dis', 'hey', 'he', 'eh', 'oh', 'ok', 'okay', 'alors', 'bon']);
-const STOP_WORDS = new Set(['stop', 'arrete', 'arretez', 'tais', 'taisez', 'chut', 'silence', 'suffit']);
+// Word right after the name → transcription slips allowed. None on "tais" and "chut": "mais", "fais", "chat".
+const STOP_WORDS = { stop: 1, arrete: 1, arretez: 1, taisez: 1, silence: 1, suffit: 1, tais: 0, chut: 0 };
 
 
 const normalize = text => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -36,21 +37,33 @@ function distance(a, b) {
 	return previous[b.length];
 }
 
-/** True when a sentence starts with the bot's name, allowing for transcription slips. */
-function addressesBot(text, botName) {
+/**
+ * When a sentence starts with the bot's name (transcription slips allowed), the
+ * words after the name up to the end of the text; null otherwise.
+ */
+function addressed(text, botName) {
 	const name = (normalize(botName).match(/[\p{L}\p{N}]+/u) || [''])[0];
-	if (!name) return false;
+	if (!name) return null;
 	const tolerance = name.length >= 6 ? 2 : name.length >= 4 ? 1 : 0;
-	return normalize(text).split(/[.!?…]+/).some(sentence => {
-		const words = sentence.match(/[\p{L}\p{N}]+/gu) || [];
+	const sentences = normalize(text).split(/[.!?…]+/).map(sentence => sentence.match(/[\p{L}\p{N}]+/gu) || []);
+	for (const [i, words] of sentences.entries()) {
 		const start = INTERJECTIONS.has(words[0]) ? 1 : 0;
 		// "BoardyBot" may be transcribed as two words: try the first one, then the first two joined.
-		return [words[start], words[start] && words[start + 1] && words[start] + words[start + 1]]
-			.some(candidate => candidate && distance(candidate, name) <= tolerance);
-	});
+		for (const count of [1, 2]) {
+			const candidate = words.slice(start, start + count);
+			if (candidate.length === count && distance(candidate.join(''), name) <= tolerance) {
+				return [...words.slice(start + count), ...sentences.slice(i + 1).flat()];
+			}
+		}
+	}
+	return null;
 }
 
-const asksToStop = text => (normalize(text).match(/[\p{L}\p{N}]+/gu) || []).some(word => STOP_WORDS.has(word));
+/** "<name>, stop", "<name>, ça suffit"…: a stop word right after the name. */
+function asksToStop(rest) {
+	const word = rest.find(w => !INTERJECTIONS.has(w) && w !== 'ca');
+	return !!word && Object.entries(STOP_WORDS).some(([stop, tolerance]) => distance(word, stop) <= tolerance);
+}
 
 /**
  * One game session in a voice channel: transcribes every speaker in segments,
@@ -239,14 +252,22 @@ class GameSession {
 		}
 		if (!text) return;
 		this.transcript.push({ at: segment.at, name: listener.name, text });
-		if (this.ending || !addressesBot(text, this.botName)) return;
-		if (this.recap && !this.recap.closed && asksToStop(text)) {
-			console.log(`[session] ${listener.name} stopped the recap: ${JSON.stringify(text)}`);
-			this.stopRecap('stop');
-		} else this.summon(listener, segment, text);
+		const rest = this.ending ? null : addressed(text, this.botName);
+		if (!rest) return;
+		if (asksToStop(rest)) this.silence(listener, text);
+		else this.summon(listener, segment, text);
 	}
 
 	/* --------------------------------------------------------- conversation */
+
+	/** "<name>, stop": end the recap or the conversation, without opening one. */
+	silence(listener, text) {
+		console.log(`[session] ${listener.name} stopped ${this.botName}: ${JSON.stringify(text)}`);
+		this.stopRecap('stop');
+		if (!this.conversation) return;
+		this.conversation.close();
+		this.speaker.stop();
+	}
 
 	/** Replay from the segment holding the wake word: GPT-Live must hear the question. */
 	summon(listener, segment, text) {
@@ -336,4 +357,4 @@ class GameSession {
 	}
 }
 
-module.exports = { GameSession, addressesBot, asksToStop };
+module.exports = { GameSession, addressed, asksToStop };
