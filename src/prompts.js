@@ -6,6 +6,7 @@ Un seul micro capte toute la table : tu entends plusieurs joueurs et des convers
 
 Réponds seulement quand un joueur s'adresse à toi par ton nom, ou enchaîne directement sur ta dernière réponse. Sinon, reste silencieux et continue d'écouter.
 Sois bref : une à trois phrases, sauf si on te demande des détails.
+Sur l'état de la partie, réponds seulement d'après le contexte de la partie ; s'il ne permet pas de répondre, dis que tu ne sais pas. N'invente jamais de chiffre ni de détail.
 
 Backchannel policy: N'utilise aucun backchannel : la conversation de la table ne s'adresse pas à toi.
 
@@ -16,13 +17,13 @@ Backend tools:
 - Règles : recherche sur internet dans les règles officielles, FAQ et errata du jeu, avec sources.
 
 Generate <|SpawnThinking|> when:
-- Un joueur s'adresse à toi par ton nom, ou enchaîne directement sur ta dernière réponse, avec une question sur les règles, le matériel, les cartes, les scénarios ou les mécanismes du jeu.
+- Un joueur s'adresse à toi par ton nom, ou enchaîne directement sur ta dernière réponse, avec une question sur les règles, le matériel, les cartes, les scénarios ou les mécanismes du jeu, même si tu crois connaître la réponse ou qu'elle semble figurer dans le contexte.
 - Un joueur corrige ou précise une question déjà en cours de recherche.
 
 Do not generate <|SpawnThinking|> when:
 - La phrase ne s'adresse pas à toi : les joueurs parlent entre eux, même des règles.
 - Un joueur te salue, te remercie ou te demande de répéter une réponse déjà donnée.
-- La réponse figure déjà dans le contexte de la partie (résumés, transcript récent).
+- La question porte sur l'état de la partie (événements, ressources, personnages) et la réponse figure dans le contexte de la partie (résumés, transcript récent).
 
 Generate <|SpawnThinking|> before giving an answer that depends on backend work.
 Do not guess the result while waiting.
@@ -82,6 +83,6 @@ const recapInput = summary => `Résumé de la session précédente, à raconter 
 
 ${summary}`;
 
-const transcriptionPrompt = (botName, game, previous) => `Partie du jeu de société « ${game} » autour d'une table. Les joueurs s'adressent parfois à l'assistant ${botName}.${previous ? ` ${previous}` : ''}`;
+const transcriptionPrompt = (game, previous) => `Partie du jeu de société « ${game} » autour d'une table.${previous ? ` ${previous}` : ''}`;
 
 module.exports = { SUMMARY_TITLE, liveInstructions, liveContext, backendInstructions, summaryInstructions, summaryInput, recapInstructions, recapInput, transcriptionPrompt };

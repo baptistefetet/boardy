@@ -7,7 +7,7 @@ const {
 	EndBehaviorType,
 } = require('@discordjs/voice');
 const config = require('./config');
-const { newOpus, msToBytes, bytesToMs, toMono24k, rms, wav, Speaker } = require('./audio');
+const { CHIME, newOpus, msToBytes, bytesToMs, toMono24k, rms, wav, Speaker } = require('./audio');
 const { transcribe, generate } = require('./openai');
 const { Conversation } = require('./conversation');
 const { Recap } = require('./recap');
@@ -20,6 +20,7 @@ const RESUBSCRIBE_MS = 1000;
 const REPLAY_MS = 60_000; // per-speaker audio kept to replay a question to GPT-Live
 const PROMPT_TAIL_CHARS = 300;
 const INTERJECTIONS = new Set(['dis', 'hey', 'he', 'eh', 'oh', 'ok', 'okay', 'alors', 'bon']);
+const STOP_WORDS = new Set(['stop', 'arrete', 'arretez', 'tais', 'taisez', 'chut', 'silence', 'suffit']);
 
 
 const normalize = text => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -48,6 +49,8 @@ function addressesBot(text, botName) {
 			.some(candidate => candidate && distance(candidate, name) <= tolerance);
 	});
 }
+
+const asksToStop = text => (normalize(text).match(/[\p{L}\p{N}]+/gu) || []).some(word => STOP_WORDS.has(word));
 
 /**
  * One game session in a voice channel: transcribes every speaker in segments,
@@ -227,7 +230,7 @@ class GameSession {
 		try {
 			const previous = this.transcript.length ? this.transcript[this.transcript.length - 1].text.slice(-PROMPT_TAIL_CHARS) : '';
 			text = await transcribe(wav(segment.pcm), {
-				prompt: transcriptionPrompt(this.botName, this.game, previous),
+				prompt: transcriptionPrompt(this.game, previous),
 				keywords: [this.botName, this.game].map(word => word.replace(/[\p{C}<>]/gu, '').trim()).filter(Boolean),
 			});
 		} catch (err) {
@@ -236,19 +239,24 @@ class GameSession {
 		}
 		if (!text) return;
 		this.transcript.push({ at: segment.at, name: listener.name, text });
-		if (!this.ending && addressesBot(text, this.botName)) this.summon(listener, segment);
+		if (this.ending || !addressesBot(text, this.botName)) return;
+		if (this.recap && !this.recap.closed && asksToStop(text)) {
+			console.log(`[session] ${listener.name} stopped the recap: ${JSON.stringify(text)}`);
+			this.stopRecap('stop');
+		} else this.summon(listener, segment, text);
 	}
 
 	/* --------------------------------------------------------- conversation */
 
 	/** Replay from the segment holding the wake word: GPT-Live must hear the question. */
-	summon(listener, segment) {
+	summon(listener, segment, text) {
+		console.log(`[session] ${listener.name} summoned ${this.botName}: ${JSON.stringify(text)}`);
 		const later = listener.recent.filter(s => s.at > segment.at).map(s => s.pcm);
 		const replay = [segment.pcm, ...later, ...listener.chunks];
 		if (this.conversation) return this.conversation.summon(listener.userId, replay);
 		this.stopRecap('wake word');
+		this.speaker.write(CHIME); // opening GPT-Live takes seconds: the table knows it was heard
 		const conversation = this.conversation = new Conversation(this, listener.userId, replay);
-		console.log(`[session] ${listener.name} summoned ${this.botName}`);
 		conversation.open().catch(err => {
 			if (conversation.closed) return; // closed on purpose during setup
 			console.error('[live] open failed:', err.message);
@@ -265,7 +273,9 @@ class GameSession {
 	onConversationClosed(conversation) {
 		this.closings.delete(conversation.closing);
 		const text = conversation.speech.trim();
-		if (text) this.transcript.push({ at: conversation.openedAt, name: this.botName, text });
+		if (!text) return;
+		console.log(`[live] said: ${JSON.stringify(text)}`);
+		this.transcript.push({ at: conversation.openedAt, name: this.botName, text });
 	}
 
 	formatHistory(history = this.history) {
@@ -326,4 +336,4 @@ class GameSession {
 	}
 }
 
-module.exports = { GameSession, addressesBot };
+module.exports = { GameSession, addressesBot, asksToStop };
