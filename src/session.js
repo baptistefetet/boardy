@@ -7,7 +7,7 @@ const {
 	EndBehaviorType,
 } = require('@discordjs/voice');
 const config = require('./config');
-const { CHIME, newOpus, msToBytes, bytesToMs, toMono24k, rms, wav, Speaker } = require('./audio');
+const { CHIME_OPEN, CHIME_CLOSE, newOpus, msToBytes, bytesToMs, toMono24k, rms, wav, Speaker } = require('./audio');
 const { transcribe, generate } = require('./openai');
 const { Conversation } = require('./conversation');
 const { Recap } = require('./recap');
@@ -263,8 +263,8 @@ class GameSession {
 		console.log(`[session] ${listener.name} stopped ${this.botName}: ${JSON.stringify(text)}`);
 		this.stopRecap('stop');
 		if (!this.conversation) return;
+		this.speaker.stop(); // before closing: keeps the closing chime
 		this.conversation.close();
-		this.speaker.stop();
 	}
 
 	/** Replay from the segment holding the wake word: GPT-Live must hear the question. */
@@ -274,7 +274,7 @@ class GameSession {
 		const replay = [segment.pcm, ...later, ...listener.chunks];
 		if (this.conversation) return this.conversation.summon(listener.userId, replay);
 		this.stopRecap('wake word');
-		this.speaker.write(CHIME); // opening GPT-Live takes seconds: the table knows it was heard
+		this.speaker.write(CHIME_OPEN); // opening GPT-Live takes seconds: the table knows it was heard
 		const conversation = this.conversation = new Conversation(this, listener.userId, replay);
 		conversation.open().catch(err => {
 			if (conversation.closed) return; // closed on purpose during setup
@@ -287,6 +287,7 @@ class GameSession {
 	onConversationClosing(conversation) {
 		if (this.conversation === conversation) this.conversation = null;
 		this.closings.add(conversation.closing);
+		if (!this.ending) this.speaker.write(CHIME_CLOSE); // queued after its last words
 	}
 
 	onConversationClosed(conversation) {

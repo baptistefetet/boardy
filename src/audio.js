@@ -13,8 +13,8 @@ const newOpus = () => new OpusEncoder(DISCORD_RATE, 2);
 const msToBytes = ms => Math.round(ms * RATE / 1000) * 2;
 const bytesToMs = bytes => bytes / 2 / RATE * 1000;
 
-/** Wake-word earcon, 24 kHz mono: two rising notes, each fading out to silence. */
-const CHIME = Buffer.concat([[660, 90], [990, 180]].map(([freq, ms]) => {
+/** Earcon, 24 kHz mono: [Hz, ms] notes, each fading out to silence. */
+const chime = notes => Buffer.concat(notes.map(([freq, ms]) => {
 	const samples = Math.round(RATE * ms / 1000);
 	const out = Buffer.alloc(samples * 2);
 	for (let i = 0; i < samples; i++) {
@@ -23,6 +23,8 @@ const CHIME = Buffer.concat([[660, 90], [990, 180]].map(([freq, ms]) => {
 	}
 	return out;
 }));
+const CHIME_OPEN = chime([[660, 90], [990, 180]]); // rising: GPT-Live opens
+const CHIME_CLOSE = chime([[990, 90], [660, 180]]); // falling: it no longer listens
 
 /** 48 kHz stereo → 24 kHz mono: average each pair of stereo frames. */
 function toMono24k(pcm) {
@@ -134,4 +136,4 @@ class Speaker {
 	}
 }
 
-module.exports = { RATE, CHIME, newOpus, msToBytes, bytesToMs, toMono24k, rms, wav, Speaker };
+module.exports = { RATE, CHIME_OPEN, CHIME_CLOSE, newOpus, msToBytes, bytesToMs, toMono24k, rms, wav, Speaker };
